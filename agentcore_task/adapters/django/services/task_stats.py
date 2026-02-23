@@ -1,10 +1,10 @@
 """
 Task execution: stats (aggregate) and query detail (list) API.
 
-- Stats (统计): get_task_stats() — aggregate counts by status, module,
-  task_name; used by dashboard and stats endpoint.
-- Query detail (查询明细): list_task_executions() — list executions with
-  filters for list/my_tasks endpoints; single-task detail remains
+- Stats: get_task_stats() — aggregate counts by status, module, task_name;
+  used by dashboard and stats endpoint.
+- Query detail: list_task_executions() — list executions with filters for
+  list/my_tasks endpoints; single-task detail remains
   TaskTracker.get_task(task_id, sync=...).
 """
 from typing import Any, Dict, Optional
@@ -56,12 +56,15 @@ def get_task_stats(
     module: Optional[str] = None,
     task_name: Optional[str] = None,
     created_by=None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Aggregate counts by status and by module/task_name.
 
-    Optional filters: module, task_name, created_by. Returns total and
-    per-status counts plus by_module and by_task_name breakdowns.
+    Optional filters: module, task_name, created_by, start_date, end_date
+    (YYYY-MM-DD; filter by created_at date). Returns total and per-status
+    counts plus by_module and by_task_name breakdowns.
     """
     queryset = TaskExecution.objects.all()
     # Apply optional filters
@@ -71,6 +74,10 @@ def get_task_stats(
         queryset = queryset.filter(task_name=task_name)
     if created_by is not None:
         queryset = queryset.filter(created_by=created_by)
+    if start_date:
+        queryset = queryset.filter(created_at__date__gte=start_date)
+    if end_date:
+        queryset = queryset.filter(created_at__date__lte=end_date)
 
     summary = _counts_for_queryset(queryset)
     by_module, by_task_name = _stats_by_module_and_task_name(queryset)

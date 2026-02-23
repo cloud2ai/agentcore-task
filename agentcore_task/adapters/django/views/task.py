@@ -34,7 +34,9 @@ User = get_user_model()
     ),
 )
 class TaskExecutionViewSet(viewsets.ReadOnlyModelViewSet):
-    """Read-only API for task executions: list, retrieve, stats, sync, my_tasks."""
+    """
+    Read-only API for task executions: list, retrieve, stats, sync, my_tasks.
+    """
 
     queryset = TaskExecution.objects.all()
     permission_classes = [IsAuthenticated]
@@ -153,6 +155,8 @@ class TaskExecutionViewSet(viewsets.ReadOnlyModelViewSet):
             module=request.query_params.get("module") or None,
             task_name=request.query_params.get("task_name") or None,
             created_by=user_filter,
+            start_date=request.query_params.get("start_date") or None,
+            end_date=request.query_params.get("end_date") or None,
         )
         serializer = TaskStatsSerializer(stats)
         return Response(serializer.data)

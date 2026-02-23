@@ -9,6 +9,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from agentcore_task.adapters.django.views import TaskExecutionViewSet
+from agentcore_task.adapters.django.views.config import TaskConfigAPIView
 
 router = DefaultRouter()
 router.register(
@@ -18,5 +19,6 @@ router.register(
 )
 
 urlpatterns = [
+    path("config/", TaskConfigAPIView.as_view(), name="task-config"),
     path("", include(router.urls)),
 ]

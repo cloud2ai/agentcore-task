@@ -98,3 +98,27 @@ class TaskStatsSerializer(serializers.Serializer):
     revoked = serializers.IntegerField()
     by_module = serializers.DictField(child=serializers.DictField())
     by_task_name = serializers.DictField(child=serializers.DictField())
+
+
+class TaskConfigSerializer(serializers.Serializer):
+    """Effective task config (GET response)."""
+
+    timeout_minutes = serializers.IntegerField(min_value=1)
+    retention_days = serializers.IntegerField(min_value=1)
+    cleanup_crontab = serializers.CharField()
+    mark_timeout_crontab = serializers.CharField()
+
+
+class TaskConfigUpdateSerializer(serializers.Serializer):
+    """Request body for PATCH config (optional fields)."""
+
+    timeout_minutes = serializers.IntegerField(
+        min_value=1, max_value=1440, required=False
+    )
+    retention_days = serializers.IntegerField(
+        min_value=1, max_value=3650, required=False
+    )
+    cleanup_crontab = serializers.CharField(required=False, allow_blank=False)
+    mark_timeout_crontab = serializers.CharField(
+        required=False, allow_blank=False
+    )

@@ -6,10 +6,11 @@ Import from here or from agentcore_task.adapters.django.
   prevent_duplicate_task
 - Task recording: TaskTracker, register_task_execution,
   TaskStatus, TaskLogCollector
-- Stats (统计): get_task_stats
-- Query detail (查询明细): list_task_executions
+- Stats: get_task_stats
+- Query detail: list_task_executions
 - Cleanup: cleanup_old_executions
 - Timeout: mark_timed_out_executions
+- Beat schedule: get_cleanup_beat_schedule
 """
 from agentcore_task.adapters.django.conf import get_cleanup_beat_schedule
 from agentcore_task.adapters.django.services.cleanup import (

@@ -30,6 +30,8 @@ class TestLock:
         assert not is_task_locked(name)
 
     def test_prevent_duplicate_task_decorator_runs_once(self):
+        # Decorator prevents concurrent execution; lock is released after run,
+        # so two sequential calls both run (no skip).
         name = "test_prevent_dup_run"
         run_count = 0
 
@@ -41,12 +43,12 @@ class TestLock:
 
         out1 = counted()
         out2 = counted()
-        assert run_count == 1
+        assert run_count == 2
         assert out1 == {"success": True}
-        assert out2.get("status") == "skipped"
-        assert "task_already_running" in str(out2.get("reason", ""))
+        assert out2 == {"success": True}
 
     def test_prevent_duplicate_task_with_lock_param(self):
+        # Same lock_param yields same lock name; sequential calls both run.
         base = "test_prevent_dup_param"
 
         @prevent_duplicate_task(base, timeout=60, lock_param="x")
@@ -54,9 +56,31 @@ class TestLock:
             return {"value": x}
 
         assert with_param(1) == {"value": 1}
-        out = with_param(1)
-        assert out.get("status") == "skipped"
+        assert with_param(1) == {"value": 1}
         assert with_param(2) == {"value": 2}
+
+    def test_prevent_duplicate_task_skipped_when_lock_held(self):
+        # When lock already held (e.g. another worker), call returns skipped.
+        name = "test_prevent_dup_held"
+        acquire_task_lock(name, timeout=60)
+        try:
+            run_count = 0
+
+            @prevent_duplicate_task(name, timeout=60)
+            def counted():
+                nonlocal run_count
+                run_count += 1
+                return {"success": True}
+
+            out = counted()
+            assert run_count == 0
+            assert out.get("status") == "skipped"
+            assert out.get("reason") in (
+                "task_already_running",
+                "lock_acquisition_failed",
+            )
+        finally:
+            release_task_lock(name)
 
 
 class TestTaskLogCollector:

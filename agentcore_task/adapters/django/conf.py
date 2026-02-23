@@ -1,5 +1,12 @@
 """
 Global config for agentcore_task (cleanup, etc.). Not user-specific.
+
+NOTE(Ray): This module uses lazy imports of task_config inside four getters
+(get_retention_days, get_cleanup_crontab, get_task_timeout_minutes,
+get_mark_timeout_crontab) to avoid circular import: conf is imported by
+services.__init__, tasks, and apps.ready(); moving task_config to top would
+cause "partially initialized module" errors. Exception to "no mid-file
+imports".
 """
 from django.conf import settings
 
@@ -27,16 +34,11 @@ def get_retention_days():
     """
     Retention days for cleanup: TaskConfig global key first, else settings.
     """
-    # NOTE(Ray): Lazy import to avoid circular dependency (conf -> task_config
-    # -> models); do not move to top of file.
-    try:
-        from agentcore_task.adapters.django.services import task_config
+    from agentcore_task.adapters.django.services import task_config
 
-        from_config = task_config.get_retention_days_from_config()
-        if from_config is not None:
-            return from_config
-    except Exception:
-        pass
+    from_config = task_config.get_retention_days_from_config()
+    if from_config is not None:
+        return from_config
     return getattr(
         settings, "AGENTCORE_TASK_RETENTION_DAYS", DEFAULT_RETENTION_DAYS
     )
@@ -72,7 +74,13 @@ def get_cleanup_beat_interval_hours():
 def get_cleanup_crontab():
     """
     Return 5-field cron expression for cleanup schedule (default daily 2:00).
+    TaskConfig global key first, else settings.
     """
+    from agentcore_task.adapters.django.services import task_config
+
+    from_config = task_config.get_cleanup_crontab_from_config()
+    if from_config is not None:
+        return from_config
     return getattr(
         settings,
         "AGENTCORE_TASK_CLEANUP_CRONTAB",
@@ -102,6 +110,13 @@ def _crontab_from_expression(expr):
         return None
 
 
+def is_valid_crontab_expression(expr) -> bool:
+    """Return True if expr is a valid 5-field cron expression."""
+    if not expr or not str(expr).strip():
+        return False
+    return _crontab_from_expression(str(expr).strip()) is not None
+
+
 def get_mark_timeout_enabled():
     """Return whether mark-timeout beat task is enabled (default True)."""
     return getattr(
@@ -117,16 +132,11 @@ def get_task_timeout_minutes():
     Used by mark_timed_out_executions to treat STARTED tasks older than
     this as failed.
     """
-    # NOTE(Ray): Lazy import to avoid circular dependency (conf -> task_config
-    # -> models); do not move to top of file.
-    try:
-        from agentcore_task.adapters.django.services import task_config
+    from agentcore_task.adapters.django.services import task_config
 
-        from_config = task_config.get_timeout_minutes_from_config()
-        if from_config is not None:
-            return from_config
-    except Exception:
-        pass
+    from_config = task_config.get_timeout_minutes_from_config()
+    if from_config is not None:
+        return from_config
     return getattr(
         settings,
         "AGENTCORE_TASK_TIMEOUT_MINUTES",
@@ -137,7 +147,13 @@ def get_task_timeout_minutes():
 def get_mark_timeout_crontab():
     """
     Return 5-field cron expression for timeout check (default every 30 min).
+    TaskConfig global key first, else settings.
     """
+    from agentcore_task.adapters.django.services import task_config
+
+    from_config = task_config.get_mark_timeout_crontab_from_config()
+    if from_config is not None:
+        return from_config
     return getattr(
         settings,
         "AGENTCORE_TASK_MARK_TIMEOUT_CRONTAB",

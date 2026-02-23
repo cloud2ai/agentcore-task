@@ -1,5 +1,6 @@
 """
-API tests for task execution endpoints (list, retrieve, status, sync, stats, my-tasks).
+API tests for task execution endpoints: list, retrieve, status, sync,
+stats, my-tasks.
 """
 import pytest
 from agentcore_task.adapters.django.services import register_task_execution
@@ -69,11 +70,14 @@ class TestListExecutions:
         data = response.json()
         items = data.get("results", data) if isinstance(data, dict) else data
         assert any(
-            item.get("task_name") == "myapp.tasks.sample" for item in items
+            item.get("task_name") == "myapp.tasks.sample"
+            for item in items
         )
 
     def test_list_filter_by_status(self, authenticated_client, execution):
-        response = authenticated_client.get(BASE_URL + "/", {"status": "PENDING"})
+        response = authenticated_client.get(
+            BASE_URL + "/", {"status": "PENDING"}
+        )
         assert response.status_code == 200
 
 
@@ -123,7 +127,9 @@ class TestStatusAction:
 
 
 class TestByTaskIdAction:
-    def test_by_task_id_returns_execution(self, authenticated_client, execution):
+    def test_by_task_id_returns_execution(
+        self, authenticated_client, execution
+    ):
         url = f"{BASE_URL}/by-task-id/{execution.task_id}/"
         response = authenticated_client.get(url + "?sync=false")
         assert response.status_code == 200
@@ -131,14 +137,15 @@ class TestByTaskIdAction:
         assert data["task_id"] == execution.task_id
 
     def test_by_task_id_404_when_not_found(self, authenticated_client):
-        response = authenticated_client.get(
-            f"{BASE_URL}/by-task-id/nonexistent-id/?sync=false"
-        )
+        url = f"{BASE_URL}/by-task-id/nonexistent-id/?sync=false"
+        response = authenticated_client.get(url)
         assert response.status_code == 404
 
 
 class TestSyncAction:
-    def test_sync_returns_updated_execution(self, authenticated_client, execution):
+    def test_sync_returns_updated_execution(
+        self, authenticated_client, execution
+    ):
         url = f"{BASE_URL}/{execution.pk}/sync/"
         response = authenticated_client.post(url)
         assert response.status_code in (200, 500)
@@ -148,7 +155,9 @@ class TestSyncAction:
 
 
 class TestStatsAction:
-    def test_stats_returns_counts(self, authenticated_client, execution, second_execution):
+    def test_stats_returns_counts(
+        self, authenticated_client, execution, second_execution
+    ):
         response = authenticated_client.get(BASE_URL + "/stats/")
         assert response.status_code == 200
         data = response.json()
@@ -158,7 +167,9 @@ class TestStatsAction:
         assert "by_module" in data
         assert "by_task_name" in data
 
-    def test_stats_filter_by_module(self, authenticated_client, execution):
+    def test_stats_filter_by_module(
+        self, authenticated_client, execution
+    ):
         response = authenticated_client.get(
             BASE_URL + "/stats/",
             {"module": "myapp"},
@@ -170,7 +181,9 @@ class TestStatsAction:
 
 
 class TestMyTasksAction:
-    def test_my_tasks_returns_user_tasks(self, authenticated_client, execution):
+    def test_my_tasks_returns_user_tasks(
+        self, authenticated_client, execution
+    ):
         response = authenticated_client.get(BASE_URL + "/my-tasks/")
         assert response.status_code == 200
         data = response.json()
@@ -178,5 +191,3 @@ class TestMyTasksAction:
         assert isinstance(items, list)
         task_ids = [item.get("task_id") for item in items]
         assert execution.task_id in task_ids
-n.task_id in task_ids
-_ids

@@ -1,6 +1,7 @@
 """
-Read task config from TaskConfig model (global scope only for now).
-Used by conf.get_retention_days() with fallback to settings.
+Read and write task config from TaskConfig model (global scope only for now).
+Used by conf.get_retention_days() / get_task_timeout_minutes() with fallback
+to settings.
 """
 import logging
 from typing import Any, Optional
@@ -8,6 +9,18 @@ from typing import Any, Optional
 from agentcore_task.adapters.django.models import TaskConfig
 
 logger = logging.getLogger(__name__)
+
+
+def set_global_task_config(key: str, value: Any) -> None:
+    """
+    Set global config key in TaskConfig. Creates or updates the row.
+    """
+    TaskConfig.objects.update_or_create(
+        scope=TaskConfig.SCOPE_GLOBAL,
+        user=None,
+        key=key,
+        defaults={"value": value},
+    )
 
 
 def get_global_task_config(key: str) -> Optional[Any]:
@@ -59,3 +72,27 @@ def get_timeout_minutes_from_config() -> Optional[int]:
         if isinstance(v, int) and v > 0:
             return v
     return None
+
+
+def _str_from_config(key: str) -> Optional[str]:
+    """Return non-empty string from TaskConfig for key, or None."""
+    raw = get_global_task_config(key)
+    if raw is None:
+        return None
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    if isinstance(raw, dict):
+        v = raw.get(key)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    return None
+
+
+def get_cleanup_crontab_from_config() -> Optional[str]:
+    """Return global cleanup_crontab (5-field cron) from TaskConfig if set."""
+    return _str_from_config("cleanup_crontab")
+
+
+def get_mark_timeout_crontab_from_config() -> Optional[str]:
+    """Return global mark_timeout_crontab (5-field cron) from TaskConfig."""
+    return _str_from_config("mark_timeout_crontab")
