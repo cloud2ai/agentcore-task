@@ -16,9 +16,9 @@ from typing import Any, Dict, Optional
 from celery.result import AsyncResult
 from django.utils import timezone
 
-from agentcore_task.constants import TaskStatus
 from agentcore_task.adapters.django.models import TaskExecution
 from agentcore_task.adapters.django.services.task_stats import get_task_stats
+from agentcore_task.constants import TaskStatus
 
 logger = logging.getLogger(__name__)
 

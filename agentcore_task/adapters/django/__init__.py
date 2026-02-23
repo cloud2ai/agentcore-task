@@ -34,20 +34,56 @@ _SUBMODULES = (
 )
 _SYMBOLS = (
     ("TaskTracker", f"{_BASE}.services.task_tracker", "TaskTracker"),
-    ("register_task_execution", f"{_BASE}.services.task_tracker", "register_task_execution"),
+    (
+        "register_task_execution",
+        f"{_BASE}.services.task_tracker",
+        "register_task_execution",
+    ),
     ("get_task_stats", f"{_BASE}.services.task_stats", "get_task_stats"),
-    ("list_task_executions", f"{_BASE}.services.task_stats", "list_task_executions"),
+    (
+        "list_task_executions",
+        f"{_BASE}.services.task_stats",
+        "list_task_executions",
+    ),
     ("acquire_task_lock", f"{_BASE}.services.task_lock", "acquire_task_lock"),
     ("release_task_lock", f"{_BASE}.services.task_lock", "release_task_lock"),
     ("is_task_locked", f"{_BASE}.services.task_lock", "is_task_locked"),
-    ("prevent_duplicate_task", f"{_BASE}.services.task_lock", "prevent_duplicate_task"),
+    (
+        "prevent_duplicate_task",
+        f"{_BASE}.services.task_lock",
+        "prevent_duplicate_task",
+    ),
     ("TaskStatus", "agentcore_task.constants", "TaskStatus"),
-    ("TaskLogCollector", f"{_BASE}.services.log_collector", "TaskLogCollector"),
-    ("cleanup_old_executions", f"{_BASE}.services.cleanup", "cleanup_old_executions"),
-    ("mark_timed_out_executions", f"{_BASE}.services.timeout", "mark_timed_out_executions"),
-    ("cleanup_old_task_executions", f"{_BASE}.tasks", "cleanup_old_task_executions"),
-    ("mark_timed_out_task_executions", f"{_BASE}.tasks", "mark_timed_out_task_executions"),
-    ("get_cleanup_beat_schedule", f"{_BASE}.conf", "get_cleanup_beat_schedule"),
+    (
+        "TaskLogCollector",
+        f"{_BASE}.services.log_collector",
+        "TaskLogCollector",
+    ),
+    (
+        "cleanup_old_executions",
+        f"{_BASE}.services.cleanup",
+        "cleanup_old_executions",
+    ),
+    (
+        "mark_timed_out_executions",
+        f"{_BASE}.services.timeout",
+        "mark_timed_out_executions",
+    ),
+    (
+        "cleanup_old_task_executions",
+        f"{_BASE}.tasks",
+        "cleanup_old_task_executions",
+    ),
+    (
+        "mark_timed_out_task_executions",
+        f"{_BASE}.tasks",
+        "mark_timed_out_task_executions",
+    ),
+    (
+        "get_cleanup_beat_schedule",
+        f"{_BASE}.conf",
+        "get_cleanup_beat_schedule",
+    ),
 )
 _LAZY = {name: (mod, attr) for name, mod, attr in _SYMBOLS}
 

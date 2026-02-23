@@ -70,7 +70,9 @@ def get_cleanup_beat_interval_hours():
 
 
 def get_cleanup_crontab():
-    """Return 5-field cron expression for cleanup schedule (default daily 2:00)."""
+    """
+    Return 5-field cron expression for cleanup schedule (default daily 2:00).
+    """
     return getattr(
         settings,
         "AGENTCORE_TASK_CLEANUP_CRONTAB",
@@ -133,7 +135,9 @@ def get_task_timeout_minutes():
 
 
 def get_mark_timeout_crontab():
-    """Return 5-field cron expression for timeout check (default every 30 min)."""
+    """
+    Return 5-field cron expression for timeout check (default every 30 min).
+    """
     return getattr(
         settings,
         "AGENTCORE_TASK_MARK_TIMEOUT_CRONTAB",

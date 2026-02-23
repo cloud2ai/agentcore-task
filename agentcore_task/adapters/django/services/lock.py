@@ -4,6 +4,7 @@ Public API: import from agentcore_task.adapters.django.
 """
 import hashlib
 import logging
+from typing import Optional
 
 from django.core.cache import cache
 
@@ -82,7 +83,7 @@ def _build_task_lock_name(lock_name, lock_param, param_value):
 def prevent_duplicate_task(
     lock_name: str,
     timeout: int = DEFAULT_TASK_TIMEOUT,
-    lock_param: str = None,
+    lock_param: Optional[str] = None,
 ):
     """
     Decorator to prevent duplicate task execution: acquires lock before run,

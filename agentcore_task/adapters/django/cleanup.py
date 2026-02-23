@@ -51,8 +51,8 @@ def cleanup_old_executions(
 
     if retention_days <= 0:
         logger.warning(
-            f"cleanup_old_executions: retention_days={retention_days} "
-            "<= 0, skipping"
+            f"cleanup_old_executions: retention_days={retention_days} <= 0, "
+            "skipping"
         )
         return {
             "deleted_count": 0,

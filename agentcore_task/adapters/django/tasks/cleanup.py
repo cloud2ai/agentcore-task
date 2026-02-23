@@ -34,7 +34,10 @@ LOCK_TIMEOUT_CLEANUP = 86400
     retry_backoff_max=600,
     retry_kwargs={"max_retries": 3},
 )
-@prevent_duplicate_task("cleanup_old_task_executions", timeout=LOCK_TIMEOUT_CLEANUP)
+@prevent_duplicate_task(
+    "cleanup_old_task_executions",
+    timeout=LOCK_TIMEOUT_CLEANUP,
+)
 def cleanup_old_task_executions(
     self, retention_days=None, only_completed=None
 ):

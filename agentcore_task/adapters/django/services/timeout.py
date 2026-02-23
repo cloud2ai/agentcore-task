@@ -40,7 +40,7 @@ def mark_timed_out_executions(
     if timeout_minutes <= 0:
         logger.warning(
             f"mark_timed_out_executions: timeout_minutes={timeout_minutes} "
-            "<= 0, skipping"
+            f"<= 0, skipping"
         )
         return {
             "updated_count": 0,
