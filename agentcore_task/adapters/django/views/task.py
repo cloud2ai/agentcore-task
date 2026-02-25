@@ -157,6 +157,7 @@ class TaskExecutionViewSet(viewsets.ReadOnlyModelViewSet):
             created_by=user_filter,
             start_date=request.query_params.get("start_date") or None,
             end_date=request.query_params.get("end_date") or None,
+            granularity=request.query_params.get("granularity") or None,
         )
         serializer = TaskStatsSerializer(stats)
         return Response(serializer.data)

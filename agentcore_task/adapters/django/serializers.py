@@ -87,7 +87,7 @@ class TaskExecutionListSerializer(serializers.ModelSerializer):
 
 
 class TaskStatsSerializer(serializers.Serializer):
-    """Stats response: total, per-status counts, by_module, by_task_name."""
+    """Stats response: total, per-status counts, by_module, by_task_name; optional series."""
 
     total = serializers.IntegerField()
     pending = serializers.IntegerField()
@@ -98,6 +98,11 @@ class TaskStatsSerializer(serializers.Serializer):
     revoked = serializers.IntegerField()
     by_module = serializers.DictField(child=serializers.DictField())
     by_task_name = serializers.DictField(child=serializers.DictField())
+    series = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        allow_null=True,
+    )
 
 
 class TaskConfigSerializer(serializers.Serializer):

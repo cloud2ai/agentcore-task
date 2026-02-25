@@ -48,7 +48,7 @@ pip install -e path/to/agentcore-task
 
    > **使用本模块时请注意：** 本模块的两个定时任务会在启动时**自动合并到 Celery Beat 调度**中，**由 Beat 按配置时间自动执行**。无需在您的项目中再次注册。若希望这些任务被执行，请确保已运行 Celery Beat。
 
-   只要把本 app 加入 `INSTALLED_APPS`，`AppConfig.ready()` 就会将上述两条合并进 `settings.CELERY_BEAT_SCHEDULE`（可通过配置关闭）。两个任务分别为：
+   只要把本 app 加入 `INSTALLED_APPS`，`AppConfig.ready()` 就会将上述两条合并进 `settings.CELERY_BEAT_SCHEDULE`（可通过配置关闭）。若主项目使用 django_celery_beat 的 DatabaseScheduler，需在 Celery 加载时将 `CELERY_BEAT_SCHEDULE` 同步到数据库（与 core/settings/celery.py 中手写条目一致），这样各 app 合并的条目也会被调度。两个任务分别为：
 
    | 任务 | 作用 | 默认执行时间 | 启用 / 调度配置 |
    |------|------|----------------|------------------|

@@ -15,7 +15,7 @@ try:
 except ImportError:
     crontab = None
 
-DEFAULT_RETENTION_DAYS = 30
+DEFAULT_RETENTION_DAYS = 180
 DEFAULT_CLEANUP_ONLY_COMPLETED = True
 DEFAULT_CLEANUP_ENABLED = True
 DEFAULT_CLEANUP_BEAT_INTERVAL_HOURS = 24
@@ -199,6 +199,67 @@ def get_cleanup_beat_schedule(interval_hours=None):
             schedule = get_cleanup_beat_interval_hours() * 3600.0
     return {
         "agentcore-task-cleanup-old-executions": {
+            "task": task_name,
+            "schedule": schedule,
+            "options": {"queue": "default"},
+        }
+    }
+
+
+def get_cleanup_beat_schedule_init(interval_hours=None):
+    """
+    Build cleanup beat schedule from Django settings only (no DB).
+    For use in AppConfig.ready() to avoid database-during-init warning.
+    """
+    task_name = (
+        "agentcore_task.adapters.django.tasks.cleanup_old_task_executions"
+    )
+    if interval_hours is not None:
+        schedule = interval_hours * 3600.0
+    else:
+        crontab_str = getattr(
+            settings,
+            "AGENTCORE_TASK_CLEANUP_CRONTAB",
+            DEFAULT_CLEANUP_CRONTAB,
+        )
+        schedule = _crontab_from_expression(crontab_str)
+        if schedule is None:
+            schedule = (
+                getattr(
+                    settings,
+                    "AGENTCORE_TASK_CLEANUP_BEAT_INTERVAL_HOURS",
+                    DEFAULT_CLEANUP_BEAT_INTERVAL_HOURS,
+                )
+                * 3600.0
+            )
+    return {
+        "agentcore-task-cleanup-old-executions": {
+            "task": task_name,
+            "schedule": schedule,
+            "options": {"queue": "default"},
+        }
+    }
+
+
+def get_mark_timeout_beat_schedule_init():
+    """
+    Build mark-timeout beat schedule from Django settings only (no DB).
+    For use in AppConfig.ready() to avoid database-during-init warning.
+    """
+    task_name = (
+        "agentcore_task.adapters.django.tasks."
+        "mark_timed_out_task_executions"
+    )
+    crontab_str = getattr(
+        settings,
+        "AGENTCORE_TASK_MARK_TIMEOUT_CRONTAB",
+        DEFAULT_MARK_TIMEOUT_CRONTAB,
+    )
+    schedule = _crontab_from_expression(crontab_str)
+    if schedule is None:
+        schedule = 3600.0
+    return {
+        "agentcore-task-mark-timed-out-executions": {
             "task": task_name,
             "schedule": schedule,
             "options": {"queue": "default"},

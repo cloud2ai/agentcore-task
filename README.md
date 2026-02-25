@@ -10,7 +10,7 @@ Unified task execution module for Django projects with Celery.
 - **Task lock**: prevent duplicate execution (acquire/release, `@prevent_duplicate_task`).
 - REST API for listing, filtering, and syncing task executions.
 
-Design rationale: [docs/DESIGN.md](docs/DESIGN.md). **Cleanup & config**: [docs/CLEANUP_AND_CONFIG.md](docs/CLEANUP_AND_CONFIG.md). **设计结论摘要**（中文）：[docs/DESIGN_SUMMARY.md](docs/DESIGN_SUMMARY.md). **提交前审查**：使用 ray-code-standards，见 [docs/PRE_COMMIT_REVIEW.md](docs/PRE_COMMIT_REVIEW.md).
+Design rationale: [docs/DESIGN.md](docs/DESIGN.md). **设计结论摘要**（中文）：[docs/DESIGN_SUMMARY.md](docs/DESIGN_SUMMARY.md). **提交前审查**：使用 ray-code-standards，见 [docs/PRE_COMMIT_REVIEW.md](docs/PRE_COMMIT_REVIEW.md).
 
 ---
 
@@ -49,7 +49,7 @@ pip install -e path/to/agentcore-task
 
    > **Important for users:** The module’s two scheduled tasks are **automatically merged into the Celery Beat schedule** at startup and **run by Beat at the configured times**. You do not need to register them in your project. Ensure Celery Beat is running if you want these tasks to execute.
 
-   Once the app is in `INSTALLED_APPS`, `AppConfig.ready()` merges the two entries into `settings.CELERY_BEAT_SCHEDULE` (unless disabled). They are:
+   Once the app is in `INSTALLED_APPS`, `AppConfig.ready()` merges the two entries into `settings.CELERY_BEAT_SCHEDULE` (unless disabled). If the host project uses django_celery_beat's DatabaseScheduler, it should sync `CELERY_BEAT_SCHEDULE` to the database when Celery loads (same as entries defined in core/settings/celery.py), so that merged entries from apps are also scheduled. They are:
 
    | Task | Purpose | Default schedule | Enable / schedule settings |
    |------|---------|------------------|----------------------------|
