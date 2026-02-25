@@ -42,10 +42,14 @@ def mark_timed_out_executions(
             f"mark_timed_out_executions: timeout_minutes={timeout_minutes} "
             f"<= 0, skipping"
         )
+        now = timezone.now()
+        cutoff_str = (
+            now.isoformat() if hasattr(now, "isoformat") else str(now)
+        )
         return {
             "updated_count": 0,
             "timeout_minutes": timeout_minutes,
-            "cutoff": timezone.now(),
+            "cutoff": cutoff_str,
             "skipped": True,
             "reason": "invalid_timeout_minutes",
         }
@@ -72,8 +76,11 @@ def mark_timed_out_executions(
             f"mark_timed_out_executions: updated={updated_count} "
             f"timeout_minutes={timeout_minutes} cutoff={cutoff!s}"
         )
+    cutoff_str = (
+        cutoff.isoformat() if hasattr(cutoff, "isoformat") else str(cutoff)
+    )
     return {
         "updated_count": updated_count,
         "timeout_minutes": timeout_minutes,
-        "cutoff": cutoff,
+        "cutoff": cutoff_str,
     }

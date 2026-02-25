@@ -96,9 +96,13 @@ def _build_task_series(
         start_date = end_date
 
     if granularity == "day":
-        day_start = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_start = start_date.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         if timezone.is_naive(day_start):
-            day_start = timezone.make_aware(day_start, timezone.get_current_timezone())
+            day_start = timezone.make_aware(
+                day_start, timezone.get_current_timezone()
+            )
         hour_counts = dict(
             qs.filter(
                 created_at__gte=day_start,
@@ -136,7 +140,11 @@ def _build_task_series(
         ]
 
     if granularity == "year":
-        year = end_date.year if hasattr(end_date, "year") else timezone.now().year
+        year = (
+            end_date.year
+            if hasattr(end_date, "year")
+            else timezone.now().year
+        )
         month_counts = dict(
             qs.annotate(month=ExtractMonth("created_at"))
             .values("month")
@@ -148,7 +156,10 @@ def _build_task_series(
             "07", "08", "09", "10", "11", "12",
         ]
         return [
-            {"bucket": f"{year}-{month_labels[m-1]}", "count": month_counts.get(m, 0)}
+            {
+                "bucket": f"{year}-{month_labels[m-1]}",
+                "count": month_counts.get(m, 0),
+            }
             for m in range(1, 13)
         ]
 
@@ -169,7 +180,7 @@ def get_task_stats(
     Optional filters: module, task_name, created_by, start_date, end_date
     (YYYY-MM-DD; filter by created_at date). Returns total and per-status
     counts plus by_module and by_task_name breakdowns.
-    When granularity is day/month/year, adds series (24h / 30d / 12mo) with fill 0.
+    When granularity is day/month/year, adds series (24h/30d/12mo) with fill 0.
     """
     queryset = TaskExecution.objects.all()
     if module:

@@ -1,17 +1,24 @@
 """
 Unit tests for agentcore_task.adapters.django.services
-(lock, log_collector, task_tracker).
+(lock, log_collector, task_tracker, timeout, cleanup, task_config)
+and conf (crontab validation).
 """
 import pytest
 
+from agentcore_task.adapters.django.conf import is_valid_crontab_expression
 from agentcore_task.adapters.django.services import (
     TaskLogCollector,
     TaskTracker,
     acquire_task_lock,
+    cleanup_old_executions,
     is_task_locked,
     prevent_duplicate_task,
     register_task_execution,
     release_task_lock,
+)
+from agentcore_task.adapters.django.services import task_config as task_config_svc
+from agentcore_task.adapters.django.services.timeout import (
+    mark_timed_out_executions,
 )
 from agentcore_task.constants import TaskStatus
 
@@ -230,3 +237,76 @@ class TestTaskTrackerAndRegister:
 
         stats_user = TaskTracker.get_task_stats(created_by=user)
         assert stats_user["total"] == 3
+
+    def test_register_task_execution_with_initial_status_started(
+        self, user, db
+    ):
+        task_id = "celery-id-started"
+        te = register_task_execution(
+            task_id=task_id,
+            task_name="periodic.task",
+            module="myapp",
+            created_by=user,
+            initial_status=TaskStatus.STARTED,
+        )
+        assert te.status == TaskStatus.STARTED
+        assert te.started_at is not None
+
+    def test_update_task_status_not_found_returns_none(self, db):
+        out = TaskTracker.update_task_status(
+            "nonexistent-task-id",
+            status=TaskStatus.SUCCESS,
+        )
+        assert out is None
+
+
+class TestConfCrontab:
+    def test_is_valid_crontab_expression_valid(self):
+        assert is_valid_crontab_expression("0 2 * * *") is True
+        assert is_valid_crontab_expression("*/30 * * * *") is True
+        assert is_valid_crontab_expression("0 0 1 * *") is True
+
+    def test_is_valid_crontab_expression_invalid(self):
+        assert is_valid_crontab_expression("") is False
+        assert is_valid_crontab_expression("   ") is False
+        assert is_valid_crontab_expression("1 2") is False
+        assert is_valid_crontab_expression("0 0 0 0 0") is False
+
+
+class TestTimeoutService:
+    def test_mark_timed_out_executions_invalid_timeout_returns_skipped(self):
+        out = mark_timed_out_executions(timeout_minutes=0)
+        assert out["updated_count"] == 0
+        assert out.get("skipped") is True
+        assert out.get("reason") == "invalid_timeout_minutes"
+
+        out_neg = mark_timed_out_executions(timeout_minutes=-1)
+        assert out_neg["updated_count"] == 0
+        assert out_neg.get("skipped") is True
+
+
+class TestCleanupService:
+    def test_cleanup_old_executions_invalid_retention_returns_skipped(self):
+        out = cleanup_old_executions(retention_days=0)
+        assert out["deleted_count"] == 0
+        assert out.get("skipped") is True
+        assert out.get("reason") == "invalid_retention_days"
+
+        out_neg = cleanup_old_executions(retention_days=-1)
+        assert out_neg["deleted_count"] == 0
+        assert out_neg.get("skipped") is True
+
+
+class TestTaskConfigService:
+    def test_set_and_get_global_task_config(self, db):
+        task_config_svc.set_global_task_config("test_key", 42)
+        val = task_config_svc.get_global_task_config("test_key")
+        assert val == 42
+
+        task_config_svc.set_global_task_config("test_key", {"nested": 1})
+        val2 = task_config_svc.get_global_task_config("test_key")
+        assert val2 == {"nested": 1}
+
+    def test_get_global_task_config_missing_returns_none(self, db):
+        val = task_config_svc.get_global_task_config("nonexistent_key_xyz")
+        assert val is None

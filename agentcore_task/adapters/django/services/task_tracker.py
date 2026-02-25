@@ -9,6 +9,7 @@ from Celery when status was not pushed).
 Public API: import from agentcore_task.adapters.django.
 Scheduled tasks (cleanup, mark_timeout) live in adapters.django.tasks.
 """
+from datetime import date, datetime
 import logging
 import traceback as tb
 from typing import Any, Dict, Optional
@@ -28,6 +29,30 @@ TASK_SYNC_CELERY = "sync_task_from_celery"
 TASK_CLEANUP = "cleanup_old_task_executions"
 TASK_MARK_TIMEOUT = "mark_timed_out_task_executions"
 MODULE_AGENTCORE_TASK = "agentcore_task"
+
+
+def _make_json_serializable(obj: Any) -> Any:
+    """
+    Recursively convert values so that obj is JSON-serializable (e.g. for
+    JSONField). Converts datetime/date to ISO format strings; leaves
+    other types unchanged. Used for result and metadata before save.
+    """
+    if obj is None:
+        return None
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat() if hasattr(obj, "isoformat") else str(obj)
+    if isinstance(obj, dict):
+        return {k: _make_json_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_make_json_serializable(v) for v in obj]
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+    try:
+        if hasattr(obj, "isoformat"):
+            return obj.isoformat()
+    except Exception:
+        pass
+    return obj
 
 
 def _extract_failure_result(async_result):
@@ -119,10 +144,10 @@ class TaskTracker:
             "task_name": task_name,
             "module": module,
             "status": status,
-            "task_args": task_args or [],
-            "task_kwargs": task_kwargs or {},
+            "task_args": _make_json_serializable(task_args or []),
+            "task_kwargs": _make_json_serializable(task_kwargs or {}),
             "created_by": created_by,
-            "metadata": metadata or {},
+            "metadata": _make_json_serializable(metadata or {}),
         }
         # Set started_at when registering as already started
         if status == TaskStatus.STARTED:
@@ -170,9 +195,10 @@ class TaskTracker:
             elif status in TaskStatus.get_completed_statuses():
                 if not task_execution.finished_at:
                     task_execution.finished_at = timezone.now()
-            # Apply optional result, error, traceback, metadata
+            # Apply optional result, error, traceback, metadata (ensure
+            # JSON-serializable so JSONField save does not raise)
             if result is not None:
-                task_execution.result = result
+                task_execution.result = _make_json_serializable(result)
             if error is not None:
                 task_execution.error = error
             if traceback is not None:
@@ -180,7 +206,12 @@ class TaskTracker:
             if metadata is not None:
                 if task_execution.metadata is None:
                     task_execution.metadata = {}
-                task_execution.metadata.update(metadata)
+                task_execution.metadata.update(
+                    _make_json_serializable(metadata)
+                )
+            task_execution.metadata = _make_json_serializable(
+                task_execution.metadata
+            )
             # Persist and log when status changed
             task_execution.save()
             if old_status != status:

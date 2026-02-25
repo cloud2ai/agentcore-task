@@ -87,7 +87,10 @@ class TaskExecutionListSerializer(serializers.ModelSerializer):
 
 
 class TaskStatsSerializer(serializers.Serializer):
-    """Stats response: total, per-status counts, by_module, by_task_name; optional series."""
+    """
+    Stats response: total, per-status counts, by_module, by_task_name;
+    optional series.
+    """
 
     total = serializers.IntegerField()
     pending = serializers.IntegerField()

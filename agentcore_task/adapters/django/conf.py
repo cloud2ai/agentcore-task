@@ -177,7 +177,7 @@ def get_mark_timeout_beat_schedule():
         "agentcore-task-mark-timed-out-executions": {
             "task": task_name,
             "schedule": schedule,
-            "options": {"queue": "default"},
+            "options": {},
         }
     }
 
@@ -201,7 +201,7 @@ def get_cleanup_beat_schedule(interval_hours=None):
         "agentcore-task-cleanup-old-executions": {
             "task": task_name,
             "schedule": schedule,
-            "options": {"queue": "default"},
+            "options": {},
         }
     }
 
@@ -236,7 +236,7 @@ def get_cleanup_beat_schedule_init(interval_hours=None):
         "agentcore-task-cleanup-old-executions": {
             "task": task_name,
             "schedule": schedule,
-            "options": {"queue": "default"},
+            "options": {},
         }
     }
 
@@ -262,7 +262,7 @@ def get_mark_timeout_beat_schedule_init():
         "agentcore-task-mark-timed-out-executions": {
             "task": task_name,
             "schedule": schedule,
-            "options": {"queue": "default"},
+            "options": {},
         }
     }
 
