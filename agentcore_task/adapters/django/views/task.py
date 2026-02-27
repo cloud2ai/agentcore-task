@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -19,6 +20,14 @@ from agentcore_task.adapters.django.services import (
 )
 
 User = get_user_model()
+
+
+class TaskExecutionPagination(PageNumberPagination):
+    """Plugin-local pagination with configurable page_size."""
+
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
 
 @extend_schema_view(
@@ -40,6 +49,7 @@ class TaskExecutionViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = TaskExecution.objects.all()
     permission_classes = [IsAuthenticated]
+    pagination_class = TaskExecutionPagination
 
     def get_serializer_class(self):
         if self.action == "list":
