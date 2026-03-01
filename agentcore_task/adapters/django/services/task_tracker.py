@@ -50,7 +50,7 @@ def _make_json_serializable(obj: Any) -> Any:
     try:
         if hasattr(obj, "isoformat"):
             return obj.isoformat()
-    except Exception:
+    except (TypeError, AttributeError):
         pass
     return obj
 

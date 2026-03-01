@@ -6,6 +6,8 @@ to settings.
 import logging
 from typing import Any, Optional
 
+from django.db.utils import OperationalError, ProgrammingError
+
 from agentcore_task.adapters.django.models import TaskConfig
 
 logger = logging.getLogger(__name__)
@@ -14,18 +16,26 @@ logger = logging.getLogger(__name__)
 def set_global_task_config(key: str, value: Any) -> None:
     """
     Set global config key in TaskConfig. Creates or updates the row.
+    No-op if table does not exist (e.g. migrations not run).
     """
-    TaskConfig.objects.update_or_create(
-        scope=TaskConfig.SCOPE_GLOBAL,
-        user=None,
-        key=key,
-        defaults={"value": value},
-    )
+    try:
+        TaskConfig.objects.update_or_create(
+            scope=TaskConfig.SCOPE_GLOBAL,
+            user=None,
+            key=key,
+            defaults={"value": value},
+        )
+    except (OperationalError, ProgrammingError) as e:
+        logger.warning(
+            f"set_global_task_config({key}) skipped: {e}",
+        )
 
 
 def get_global_task_config(key: str) -> Optional[Any]:
     """
     Return value for global config key from TaskConfig, or None if not set.
+    On DB/table errors (e.g. table missing), returns None so conf falls
+    back to settings.
     """
     try:
         row = TaskConfig.objects.filter(
@@ -35,6 +45,10 @@ def get_global_task_config(key: str) -> Optional[Any]:
         ).first()
         if row is not None and row.value is not None:
             return row.value
+    except (OperationalError, ProgrammingError) as e:
+        logger.warning(
+            f"get_global_task_config({key}) failed (using defaults): {e}",
+        )
     except Exception as e:
         logger.debug(f"get_global_task_config({key}) failed: {e}")
     return None

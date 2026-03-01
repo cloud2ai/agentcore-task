@@ -5,8 +5,8 @@ Single source of truth for retention-based cleanup. Uses global config (conf)
 when arguments are omitted. Call directly or via the Celery task in
 adapters.django.tasks (cleanup_old_task_executions).
 """
-import logging
 from datetime import timedelta
+import logging
 from typing import Any, Dict, Optional
 
 from django.utils import timezone

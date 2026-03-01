@@ -7,7 +7,7 @@ Task execution: stats (aggregate) and query detail (list) API.
   list/my_tasks endpoints; single-task detail remains
   TaskTracker.get_task(task_id, sync=...).
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as utc_tz
 from typing import Any, Dict, List, Optional
 
 from django.db.models import Count
@@ -58,12 +58,12 @@ def _stats_by_module_and_task_name(queryset):
 
 
 def _parse_date(value: Optional[str]):
-    """Parse YYYY-MM-DD to timezone-aware start-of-day datetime."""
+    """Parse YYYY-MM-DD to timezone-aware (UTC) start-of-day datetime."""
     if not value:
         return None
     try:
         dt = datetime.strptime(value.strip()[:10], "%Y-%m-%d")
-        return timezone.make_aware(dt)
+        return timezone.make_aware(dt, utc_tz.utc)
     except (ValueError, TypeError):
         return None
 
@@ -100,9 +100,7 @@ def _build_task_series(
             hour=0, minute=0, second=0, microsecond=0
         )
         if timezone.is_naive(day_start):
-            day_start = timezone.make_aware(
-                day_start, timezone.get_current_timezone()
-            )
+            day_start = timezone.make_aware(day_start, utc_tz.utc)
         hour_counts = dict(
             qs.filter(
                 created_at__gte=day_start,

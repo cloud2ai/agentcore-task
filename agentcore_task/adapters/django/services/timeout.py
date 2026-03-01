@@ -5,8 +5,8 @@ Single source of truth for timeout-based failure. Uses global config (conf)
 when timeout_minutes is omitted. Call directly or via the Celery task in
 adapters.django.tasks (mark_timed_out_task_executions).
 """
-import logging
 from datetime import timedelta
+import logging
 from typing import Any, Dict, Optional
 
 from django.utils import timezone

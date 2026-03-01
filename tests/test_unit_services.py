@@ -16,7 +16,9 @@ from agentcore_task.adapters.django.services import (
     register_task_execution,
     release_task_lock,
 )
-from agentcore_task.adapters.django.services import task_config as task_config_svc
+from agentcore_task.adapters.django.services import (
+    task_config as task_config_svc,
+)
 from agentcore_task.adapters.django.services.timeout import (
     mark_timed_out_executions,
 )
