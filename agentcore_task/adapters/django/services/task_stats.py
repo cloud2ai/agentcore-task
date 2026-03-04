@@ -217,14 +217,19 @@ def list_task_executions(
     created_by=None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    search: Optional[str] = None,
+    config_platform: Optional[str] = None,
+    config_key: Optional[str] = None,
     order_by: str = "-created_at",
 ):
     """
     Query task execution list (query detail API).
 
     Optional filters: module, task_name, status, created_by, start_date,
-    end_date. Returns a QuerySet with select_related("created_by") for
-    list/detail views; caller may paginate or slice.
+    end_date, search (task_name icontains), config_platform (exact on
+    metadata.config_platform), config_key (icontains on metadata.config_key).
+    Returns a QuerySet with select_related("created_by") for list/detail
+    views; caller may paginate or slice.
     """
     queryset = TaskExecution.objects.select_related("created_by").all()
     # Apply optional filters
@@ -240,4 +245,10 @@ def list_task_executions(
         queryset = queryset.filter(created_at__gte=start_date)
     if end_date:
         queryset = queryset.filter(created_at__lte=end_date)
+    if search and search.strip():
+        queryset = queryset.filter(task_name__icontains=search.strip())
+    if config_platform and config_platform.strip():
+        queryset = queryset.filter(metadata__config_platform=config_platform.strip())
+    if config_key and config_key.strip():
+        queryset = queryset.filter(metadata__config_key__icontains=config_key.strip())
     return queryset.order_by(order_by)

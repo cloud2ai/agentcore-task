@@ -76,6 +76,9 @@ class TaskExecutionViewSet(viewsets.ReadOnlyModelViewSet):
             created_by=created_by,
             start_date=self.request.query_params.get("start_date") or None,
             end_date=self.request.query_params.get("end_date") or None,
+            search=self.request.query_params.get("search") or None,
+            config_platform=self.request.query_params.get("config_platform") or None,
+            config_key=self.request.query_params.get("config_key") or None,
         )
 
     @extend_schema(

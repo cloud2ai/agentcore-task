@@ -78,6 +78,7 @@ class TaskExecutionListSerializer(serializers.ModelSerializer):
             "created_at",
             "started_at",
             "finished_at",
+            "metadata",
             "created_by_id",
             "created_by_username",
             "duration",
