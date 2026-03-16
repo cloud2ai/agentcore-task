@@ -12,7 +12,7 @@ Scheduled tasks (cleanup, mark_timeout) live in adapters.django.tasks.
 from datetime import date, datetime
 import logging
 import traceback as tb
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from celery.result import AsyncResult
 from django.utils import timezone
@@ -29,6 +29,14 @@ TASK_SYNC_CELERY = "sync_task_from_celery"
 TASK_CLEANUP = "cleanup_old_task_executions"
 TASK_MARK_TIMEOUT = "mark_timed_out_task_executions"
 MODULE_AGENTCORE_TASK = "agentcore_task"
+CELERY_STATUS_MAPPING = {
+    "PENDING": TaskStatus.PENDING,
+    "STARTED": TaskStatus.STARTED,
+    "SUCCESS": TaskStatus.SUCCESS,
+    "FAILURE": TaskStatus.FAILURE,
+    "RETRY": TaskStatus.RETRY,
+    "REVOKED": TaskStatus.REVOKED,
+}
 
 
 def _make_json_serializable(obj: Any) -> Any:
@@ -55,7 +63,9 @@ def _make_json_serializable(obj: Any) -> Any:
     return obj
 
 
-def _extract_failure_result(async_result):
+def _extract_failure_result(
+    async_result: AsyncResult,
+) -> Tuple[None, Optional[str], Optional[str]]:
     """
     Return (result, error, traceback_str) from a failed AsyncResult.
 
@@ -70,8 +80,40 @@ def _extract_failure_result(async_result):
             error = str(res)
             if hasattr(res, "__traceback__") and res.__traceback__:
                 traceback_str = "".join(tb.format_tb(res.__traceback__))
+        if traceback_str is None:
+            traceback_str = async_result.traceback
     except Exception as e:
         error = str(e)
+    return result, error, traceback_str
+
+
+def _should_ignore_pending_sync(
+    new_status: str,
+    current_status: str,
+) -> bool:
+    """
+    Keep completed status when Celery returns PENDING for unknown task_id.
+    """
+    return (
+        new_status == TaskStatus.PENDING
+        and current_status in TaskStatus.get_completed_statuses()
+    )
+
+
+def _build_sync_update_payload(
+    async_result: AsyncResult,
+    celery_status: str,
+) -> Tuple[Optional[Any], Optional[str], Optional[str]]:
+    """Build result/error/traceback payload for sync_task_from_celery."""
+    result, error, traceback_str = None, None, None
+    if not async_result.ready():
+        return result, error, traceback_str
+
+    if celery_status == "SUCCESS":
+        result = async_result.result
+    elif celery_status == "FAILURE":
+        result, error, traceback_str = _extract_failure_result(async_result)
+
     return result, error, traceback_str
 
 
@@ -239,26 +281,27 @@ class TaskTracker:
         try:
             task_execution = TaskExecution.objects.get(task_id=task_id)
             async_result = AsyncResult(task_id)
-            status_mapping = {
-                "PENDING": TaskStatus.PENDING,
-                "STARTED": TaskStatus.STARTED,
-                "SUCCESS": TaskStatus.SUCCESS,
-                "FAILURE": TaskStatus.FAILURE,
-                "RETRY": TaskStatus.RETRY,
-                "REVOKED": TaskStatus.REVOKED,
-            }
             celery_status = async_result.status
-            new_status = status_mapping.get(celery_status, TaskStatus.PENDING)
+            new_status = CELERY_STATUS_MAPPING.get(
+                celery_status,
+                TaskStatus.PENDING,
+            )
+            # Do not overwrite completed status with PENDING: task_id may be
+            # a business-generated id (e.g. per-user OSS Scan), not a Celery
+            # task id; Celery returns PENDING for unknown id.
+            if _should_ignore_pending_sync(new_status, task_execution.status):
+                logger.debug(
+                    "Skip sync because task is completed and Celery returned "
+                    f"PENDING task_id={task_id} "
+                    f"status={task_execution.status}"
+                )
+                return task_execution
             # Update DB when Celery state differs from our record
             if task_execution.status != new_status:
-                result, error, traceback_str = None, None, None
-                if async_result.ready():
-                    if celery_status == "SUCCESS":
-                        result = async_result.result
-                    elif celery_status == "FAILURE":
-                        result, error, traceback_str = (
-                            _extract_failure_result(async_result)
-                        )
+                result, error, traceback_str = _build_sync_update_payload(
+                    async_result=async_result,
+                    celery_status=celery_status,
+                )
                 out = TaskTracker.update_task_status(
                     task_id=task_id,
                     status=new_status,
@@ -301,13 +344,15 @@ class TaskTracker:
         ).order_by("created_at")
         if max_sync is not None and max_sync > 0:
             qs = qs[:max_sync]
-        task_ids = list(qs.values_list("task_id", flat=True))
-        synced_count = len(task_ids)
+        task_items = list(qs.values("task_id", "status"))
+        synced_count = len(task_items)
         updated_count = 0
         # Sync each unfinished task from Celery
-        for tid in task_ids:
+        for item in task_items:
+            tid = item["task_id"]
+            old_status = item["status"]
             out = TaskTracker.sync_task_from_celery(tid)
-            if out is not None:
+            if out is not None and out.status != old_status:
                 updated_count += 1
         return {"synced_count": synced_count, "updated_count": updated_count}
 

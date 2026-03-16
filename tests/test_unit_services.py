@@ -19,6 +19,9 @@ from agentcore_task.adapters.django.services import (
 from agentcore_task.adapters.django.services import (
     task_config as task_config_svc,
 )
+from agentcore_task.adapters.django.services import (
+    task_tracker as task_tracker_svc,
+)
 from agentcore_task.adapters.django.services.timeout import (
     mark_timed_out_executions,
 )
@@ -260,6 +263,276 @@ class TestTaskTrackerAndRegister:
             status=TaskStatus.SUCCESS,
         )
         assert out is None
+
+    def test_sync_task_from_celery_does_not_override_completed_with_pending(
+        self, user, db, monkeypatch
+    ):
+        register_task_execution(
+            task_id="tid-sync-completed",
+            task_name="t",
+            module="m",
+            created_by=user,
+        )
+        TaskTracker.update_task_status(
+            task_id="tid-sync-completed",
+            status=TaskStatus.SUCCESS,
+            result={"ok": True},
+        )
+
+        class FakePendingResult:
+            status = "PENDING"
+            result = None
+            traceback = None
+
+            @staticmethod
+            def ready():
+                return False
+
+        monkeypatch.setattr(
+            task_tracker_svc,
+            "AsyncResult",
+            lambda _: FakePendingResult(),
+        )
+
+        synced = TaskTracker.sync_task_from_celery("tid-sync-completed")
+        assert synced is not None
+        assert synced.status == TaskStatus.SUCCESS
+        synced.refresh_from_db()
+        assert synced.status == TaskStatus.SUCCESS
+
+    def test_sync_task_from_celery_updates_pending_to_success(
+        self, user, db, monkeypatch
+    ):
+        register_task_execution(
+            task_id="tid-sync-pending",
+            task_name="t",
+            module="m",
+            created_by=user,
+        )
+
+        class FakeSuccessResult:
+            status = "SUCCESS"
+            result = {"count": 1}
+            traceback = None
+
+            @staticmethod
+            def ready():
+                return True
+
+        monkeypatch.setattr(
+            task_tracker_svc,
+            "AsyncResult",
+            lambda _: FakeSuccessResult(),
+        )
+
+        synced = TaskTracker.sync_task_from_celery("tid-sync-pending")
+        assert synced is not None
+        synced.refresh_from_db()
+        assert synced.status == TaskStatus.SUCCESS
+        assert synced.result == {"count": 1}
+
+    @pytest.mark.parametrize(
+        "completed_status",
+        [TaskStatus.FAILURE, TaskStatus.REVOKED],
+    )
+    def test_sync_task_from_celery_keeps_completed_on_pending(
+        self,
+        user,
+        db,
+        monkeypatch,
+        completed_status,
+    ):
+        register_task_execution(
+            task_id=f"tid-sync-completed-{completed_status.lower()}",
+            task_name="t",
+            module="m",
+            created_by=user,
+        )
+        TaskTracker.update_task_status(
+            task_id=f"tid-sync-completed-{completed_status.lower()}",
+            status=completed_status,
+            error="done",
+        )
+
+        class FakePendingResult:
+            status = "PENDING"
+            result = None
+            traceback = None
+
+            @staticmethod
+            def ready():
+                return False
+
+        monkeypatch.setattr(
+            task_tracker_svc,
+            "AsyncResult",
+            lambda _: FakePendingResult(),
+        )
+
+        task_id = f"tid-sync-completed-{completed_status.lower()}"
+        synced = TaskTracker.sync_task_from_celery(task_id)
+        assert synced is not None
+        synced.refresh_from_db()
+        assert synced.status == completed_status
+
+    def test_sync_task_from_celery_failure_uses_celery_traceback_fallback(
+        self, user, db, monkeypatch
+    ):
+        register_task_execution(
+            task_id="tid-sync-failure-fallback",
+            task_name="t",
+            module="m",
+            created_by=user,
+        )
+
+        class FakeFailureResult:
+            status = "FAILURE"
+            result = Exception("boom")
+            traceback = "celery-traceback-text"
+
+            @staticmethod
+            def ready():
+                return True
+
+        monkeypatch.setattr(
+            task_tracker_svc,
+            "AsyncResult",
+            lambda _: FakeFailureResult(),
+        )
+
+        synced = TaskTracker.sync_task_from_celery("tid-sync-failure-fallback")
+        assert synced is not None
+        synced.refresh_from_db()
+        assert synced.status == TaskStatus.FAILURE
+        assert synced.error == "boom"
+        assert synced.traceback == "celery-traceback-text"
+
+    def test_sync_task_from_celery_same_status_does_not_overwrite_result(
+        self, user, db, monkeypatch
+    ):
+        register_task_execution(
+            task_id="tid-sync-same-status",
+            task_name="t",
+            module="m",
+            created_by=user,
+        )
+        TaskTracker.update_task_status(
+            task_id="tid-sync-same-status",
+            status=TaskStatus.SUCCESS,
+            result={"from_db": True},
+        )
+
+        class FakeSuccessResult:
+            status = "SUCCESS"
+            result = {"from_celery": True}
+            traceback = None
+
+            @staticmethod
+            def ready():
+                return True
+
+        monkeypatch.setattr(
+            task_tracker_svc,
+            "AsyncResult",
+            lambda _: FakeSuccessResult(),
+        )
+
+        synced = TaskTracker.sync_task_from_celery("tid-sync-same-status")
+        assert synced is not None
+        synced.refresh_from_db()
+        assert synced.status == TaskStatus.SUCCESS
+        assert synced.result == {"from_db": True}
+
+    def test_get_task_with_sync_refreshes_from_sync_service(
+        self, user, db, monkeypatch
+    ):
+        register_task_execution(
+            task_id="tid-get-sync",
+            task_name="t",
+            module="m",
+            created_by=user,
+        )
+
+        def fake_sync(task_id):
+            TaskTracker.update_task_status(
+                task_id=task_id,
+                status=TaskStatus.SUCCESS,
+                result={"synced": True},
+            )
+            return TaskTracker.get_task(task_id, sync=False)
+
+        monkeypatch.setattr(
+            TaskTracker,
+            "sync_task_from_celery",
+            staticmethod(fake_sync),
+        )
+
+        found = TaskTracker.get_task("tid-get-sync", sync=True)
+        assert found is not None
+        assert found.status == TaskStatus.SUCCESS
+        assert found.result == {"synced": True}
+
+    def test_sync_all_unfinished_executions_counts_only_real_updates(
+        self, user, db, monkeypatch
+    ):
+        register_task_execution(
+            task_id="tid-sync-all-pending",
+            task_name="t",
+            module="m",
+            created_by=user,
+        )
+        register_task_execution(
+            task_id="tid-sync-all-to-success",
+            task_name="t",
+            module="m",
+            created_by=user,
+            initial_status=TaskStatus.STARTED,
+        )
+        register_task_execution(
+            task_id="tid-sync-all-no-change",
+            task_name="t",
+            module="m",
+            created_by=user,
+            initial_status=TaskStatus.STARTED,
+        )
+
+        result_map = {
+            "tid-sync-all-pending": {
+                "status": "PENDING",
+                "ready": False,
+                "result": None,
+                "traceback": None,
+            },
+            "tid-sync-all-to-success": {
+                "status": "SUCCESS",
+                "ready": True,
+                "result": {"ok": 1},
+                "traceback": None,
+            },
+            "tid-sync-all-no-change": {
+                "status": "STARTED",
+                "ready": False,
+                "result": None,
+                "traceback": None,
+            },
+        }
+
+        class FakeAsyncResult:
+            def __init__(self, task_id):
+                payload = result_map[task_id]
+                self.status = payload["status"]
+                self.result = payload["result"]
+                self.traceback = payload["traceback"]
+                self._ready = payload["ready"]
+
+            def ready(self):
+                return self._ready
+
+        monkeypatch.setattr(task_tracker_svc, "AsyncResult", FakeAsyncResult)
+
+        out = TaskTracker.sync_all_unfinished_executions()
+        assert out["synced_count"] == 3
+        assert out["updated_count"] == 1
 
 
 class TestConfCrontab:
