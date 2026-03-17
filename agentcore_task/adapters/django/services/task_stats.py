@@ -248,7 +248,11 @@ def list_task_executions(
     if search and search.strip():
         queryset = queryset.filter(task_name__icontains=search.strip())
     if config_platform and config_platform.strip():
-        queryset = queryset.filter(metadata__config_platform=config_platform.strip())
+        queryset = queryset.filter(
+            metadata__config_platform=config_platform.strip()
+        )
     if config_key and config_key.strip():
-        queryset = queryset.filter(metadata__config_key__icontains=config_key.strip())
+        queryset = queryset.filter(
+            metadata__config_key__icontains=config_key.strip()
+        )
     return queryset.order_by(order_by)

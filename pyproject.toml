@@ -27,7 +27,6 @@ where = ["."]
 include = ["agentcore_task*"]
 
 [tool.pytest.ini_options]
-django_settings = "tests.settings"
 python_files = ["test_*.py"]
 addopts = "-v"
 testpaths = ["tests"]
