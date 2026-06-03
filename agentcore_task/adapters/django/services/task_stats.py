@@ -187,10 +187,12 @@ def get_task_stats(
         queryset = queryset.filter(task_name=task_name)
     if created_by is not None:
         queryset = queryset.filter(created_by=created_by)
-    if start_date:
-        queryset = queryset.filter(created_at__date__gte=start_date)
-    if end_date:
-        queryset = queryset.filter(created_at__date__lte=end_date)
+    parsed_start = _parse_date(start_date)
+    parsed_end = _parse_end_date(end_date)
+    if parsed_start:
+        queryset = queryset.filter(created_at__date__gte=parsed_start)
+    if parsed_end:
+        queryset = queryset.filter(created_at__date__lte=parsed_end)
 
     summary = _counts_for_queryset(queryset)
     by_module, by_task_name = _stats_by_module_and_task_name(queryset)
