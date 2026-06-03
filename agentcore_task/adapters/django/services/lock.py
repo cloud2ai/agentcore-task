@@ -28,7 +28,7 @@ def acquire_task_lock(lock_name: str, timeout: int = DEFAULT_TASK_TIMEOUT):
             logger.warning(f"Task lock already exists lock_name={lock_name}")
         return acquired
     except Exception as exc:
-        logger.error(
+        logger.warning(
             f"Failed to acquire task lock lock_name={lock_name}: {exc}"
         )
         return False
@@ -42,7 +42,7 @@ def release_task_lock(lock_name: str):
         logger.info(f"Released task lock lock_name={lock_name}")
         return True
     except Exception as exc:
-        logger.error(
+        logger.warning(
             f"Failed to release task lock lock_name={lock_name}: {exc}"
         )
         return False
@@ -54,7 +54,7 @@ def is_task_locked(lock_name: str):
     try:
         return cache.get(lock_key) is not None
     except Exception as exc:
-        logger.error(
+        logger.warning(
             f"Failed to check task lock lock_name={lock_name}: {exc}"
         )
         return False
@@ -90,6 +90,7 @@ def prevent_duplicate_task(
     releases after. Returns skip payload if lock exists or acquisition fails.
     """
     def decorator(func):
+
         def wrapper(*args, **kwargs):
             task_lock_name = lock_name
             if lock_param:
