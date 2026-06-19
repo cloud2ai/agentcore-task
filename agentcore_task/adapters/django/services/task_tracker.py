@@ -92,11 +92,18 @@ def _should_ignore_pending_sync(
     current_status: str,
 ) -> bool:
     """
-    Keep completed status when Celery returns PENDING for unknown task_id.
+    Keep an already running or completed status when Celery returns PENDING.
+
+    Celery returns PENDING for an unknown task_id (e.g. a business-generated
+    id that is not a Celery task id). In that case the locally tracked status
+    was set by the business layer and must not be downgraded to PENDING.
     """
     return (
         new_status == TaskStatus.PENDING
-        and current_status in TaskStatus.get_completed_statuses()
+        and current_status in (
+            TaskStatus.get_running_statuses()
+            + TaskStatus.get_completed_statuses()
+        )
     )
 
 

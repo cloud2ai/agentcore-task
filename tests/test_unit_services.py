@@ -375,6 +375,43 @@ class TestTaskTrackerAndRegister:
         synced.refresh_from_db()
         assert synced.status == completed_status
 
+    def test_sync_task_from_celery_keeps_running_on_pending(
+        self,
+        user,
+        db,
+        monkeypatch,
+    ):
+        register_task_execution(
+            task_id="tid-sync-running",
+            task_name="t",
+            module="m",
+            created_by=user,
+        )
+        TaskTracker.update_task_status(
+            task_id="tid-sync-running",
+            status=TaskStatus.STARTED,
+        )
+
+        class FakePendingResult:
+            status = "PENDING"
+            result = None
+            traceback = None
+
+            @staticmethod
+            def ready():
+                return False
+
+        monkeypatch.setattr(
+            task_tracker_svc,
+            "AsyncResult",
+            lambda _: FakePendingResult(),
+        )
+
+        synced = TaskTracker.sync_task_from_celery("tid-sync-running")
+        assert synced is not None
+        synced.refresh_from_db()
+        assert synced.status == TaskStatus.STARTED
+
     def test_sync_task_from_celery_failure_uses_celery_traceback_fallback(
         self, user, db, monkeypatch
     ):
