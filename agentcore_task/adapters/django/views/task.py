@@ -195,7 +195,15 @@ class TaskExecutionViewSet(viewsets.ReadOnlyModelViewSet):
         )
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = TaskExecutionListSerializer(page, many=True)
+            serializer = TaskExecutionListSerializer(
+                page,
+                many=True,
+                context=self.get_serializer_context(),
+            )
             return self.get_paginated_response(serializer.data)
-        serializer = TaskExecutionListSerializer(queryset, many=True)
+        serializer = TaskExecutionListSerializer(
+            queryset,
+            many=True,
+            context=self.get_serializer_context(),
+        )
         return Response(serializer.data)

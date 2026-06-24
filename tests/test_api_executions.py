@@ -80,6 +80,87 @@ class TestListExecutions:
         )
         assert response.status_code == 200
 
+    def test_list_returns_full_metadata_by_default(
+        self, authenticated_client, user, db
+    ):
+        execution = register_task_execution(
+            task_id="api-default-metadata-task",
+            task_name="myapp.tasks.heavy",
+            module="myapp",
+            created_by=user,
+            metadata={
+                "datasource_uuid": "datasource-001",
+                "progress_percent": 50,
+                "steps": [{"name": "item_done"}],
+            },
+        )
+
+        response = authenticated_client.get(BASE_URL + "/")
+
+        assert response.status_code == 200
+        data = response.json()
+        items = data.get("results", data) if isinstance(data, dict) else data
+        item = next(
+            row for row in items if row.get("task_id") == execution.task_id
+        )
+        assert item["metadata"]["steps"] == [{"name": "item_done"}]
+
+    def test_list_filters_metadata_fields_when_requested(
+        self, authenticated_client, user, db
+    ):
+        execution = register_task_execution(
+            task_id="api-filtered-metadata-task",
+            task_name="myapp.tasks.heavy",
+            module="myapp",
+            created_by=user,
+            metadata={
+                "datasource_uuid": "datasource-001",
+                "progress_percent": 50,
+                "steps": [{"name": "item_done"} for _ in range(20)],
+                "logs": [{"message": "large"} for _ in range(20)],
+            },
+        )
+
+        response = authenticated_client.get(
+            BASE_URL + "/",
+            {"metadata_fields": "datasource_uuid,progress_percent"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        items = data.get("results", data) if isinstance(data, dict) else data
+        item = next(
+            row for row in items if row.get("task_id") == execution.task_id
+        )
+        assert item["metadata"] == {
+            "datasource_uuid": "datasource-001",
+            "progress_percent": 50,
+        }
+
+    def test_list_excludes_metadata_when_requested(
+        self, authenticated_client, user, db
+    ):
+        execution = register_task_execution(
+            task_id="api-no-metadata-task",
+            task_name="myapp.tasks.heavy",
+            module="myapp",
+            created_by=user,
+            metadata={"steps": [{"name": "item_done"}]},
+        )
+
+        response = authenticated_client.get(
+            BASE_URL + "/",
+            {"include_metadata": "false"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        items = data.get("results", data) if isinstance(data, dict) else data
+        item = next(
+            row for row in items if row.get("task_id") == execution.task_id
+        )
+        assert item["metadata"] is None
+
 
 class TestRetrieveExecution:
     def test_retrieve_requires_auth(self, api_client, execution):
@@ -96,6 +177,52 @@ class TestRetrieveExecution:
         assert data["task_name"] == execution.task_name
         assert data["module"] == "myapp"
         assert data["status"] == "PENDING"
+        assert data["metadata"] == {"test": True}
+
+    def test_retrieve_filters_metadata_fields_when_requested(
+        self, authenticated_client, user, db
+    ):
+        execution = register_task_execution(
+            task_id="api-filtered-detail-metadata-task",
+            task_name="myapp.tasks.detail",
+            module="myapp",
+            created_by=user,
+            metadata={
+                "datasource_uuid": "datasource-001",
+                "progress_percent": 50,
+                "steps": [{"name": "item_done"}],
+            },
+        )
+
+        response = authenticated_client.get(
+            f"{BASE_URL}/{execution.pk}/",
+            {"metadata_fields": "datasource_uuid,progress_percent"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["metadata"] == {
+            "datasource_uuid": "datasource-001",
+            "progress_percent": 50,
+        }
+
+    def test_retrieve_excludes_metadata_when_requested(
+        self, authenticated_client, user, db
+    ):
+        execution = register_task_execution(
+            task_id="api-no-detail-metadata-task",
+            task_name="myapp.tasks.detail",
+            module="myapp",
+            created_by=user,
+            metadata={"steps": [{"name": "item_done"}]},
+        )
+
+        response = authenticated_client.get(
+            f"{BASE_URL}/{execution.pk}/",
+            {"include_metadata": "false"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["metadata"] is None
 
     def test_retrieve_404_for_unknown_id(self, authenticated_client):
         response = authenticated_client.get(f"{BASE_URL}/99999/")
