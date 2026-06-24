@@ -223,12 +223,34 @@ pip install -e path/to/agentcore-task
 | `end_date` | string | `created_at <= end_date` |
 | `page` | int | 页码（若项目开启分页） |
 | `page_size` | int | 每页条数（若项目支持） |
+| `include_metadata` | string | 可选响应控制。设为 `"false"` 时返回 `metadata: null`。默认返回完整 `metadata` |
+| `metadata_fields` | string | 可选的 `metadata` key 白名单，逗号分隔，例如 `progress_percent,progress_step`。当 `include_metadata=false` 时忽略 |
 
 响应（列表）：对象数组，含 `id`、`task_id`、`task_name`、`module`、`status`、`created_at`、`started_at`、`finished_at`、`created_by_id`、`created_by_username`、`duration`、`is_completed`、`is_running`。
+
+`metadata` 响应控制是可选能力，默认行为保持兼容：
+
+```http
+GET .../executions/?include_metadata=false
+GET .../executions/?metadata_fields=progress_percent,progress_step
+```
+
+列表轮询或看板不需要 `metadata` 时，使用 `include_metadata=false`。
+只需要少量摘要字段时，使用 `metadata_fields`。两个参数都不传时，
+返回完整 `metadata`。
 
 ### GET `.../executions/{id}/` 及按 task_id 详情
 
 响应字段：`id`、`task_id`、`task_name`、`module`、`status`、`created_at`、`started_at`、`finished_at`、`task_args`、`task_kwargs`、`result`、`error`、`traceback`、`created_by`、`created_by_id`、`created_by_username`、`metadata`、`duration`、`is_completed`、`is_running`。
+
+详情类响应同样支持上述 `metadata` 响应控制，包括
+`.../executions/{id}/`、`.../executions/by-task-id/{task_id}/`、
+`.../executions/status/` 和 `.../executions/{id}/sync/`：
+
+```http
+GET .../executions/{id}/?include_metadata=false
+GET .../executions/{id}/?metadata_fields=progress_percent,progress_message
+```
 
 ### GET `.../executions/status/`
 

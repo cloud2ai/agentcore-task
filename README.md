@@ -226,12 +226,35 @@ Query params (all optional):
 | `end_date` | string | Filter `created_at <= end_date`. |
 | `page` | int | Page number (if pagination enabled). |
 | `page_size` | int | Page size (if project supports it). |
+| `include_metadata` | string | Optional response control. Set to `"false"` to return `metadata` as `null`. Defaults to full `metadata`. |
+| `metadata_fields` | string | Optional comma-separated allowlist for `metadata` keys, e.g. `progress_percent,progress_step`. Ignored when `include_metadata=false`. |
 
 Response (list): array of objects with `id`, `task_id`, `task_name`, `module`, `status`, `created_at`, `started_at`, `finished_at`, `created_by_id`, `created_by_username`, `duration`, `is_completed`, `is_running`.
+
+Metadata response controls are opt-in and preserve backward compatibility:
+
+```http
+GET .../executions/?include_metadata=false
+GET .../executions/?metadata_fields=progress_percent,progress_step
+```
+
+Use `include_metadata=false` for list polling or dashboards that do not need
+metadata. Use `metadata_fields` when the UI needs only a small metadata
+summary. If neither parameter is provided, the full `metadata` object is
+returned.
 
 ### GET `.../executions/{id}/` and detail by task_id
 
 Response fields: `id`, `task_id`, `task_name`, `module`, `status`, `created_at`, `started_at`, `finished_at`, `task_args`, `task_kwargs`, `result`, `error`, `traceback`, `created_by`, `created_by_id`, `created_by_username`, `metadata`, `duration`, `is_completed`, `is_running`.
+
+The same metadata response controls are available for detail-style responses,
+including `.../executions/{id}/`, `.../executions/by-task-id/{task_id}/`,
+`.../executions/status/`, and `.../executions/{id}/sync/`:
+
+```http
+GET .../executions/{id}/?include_metadata=false
+GET .../executions/{id}/?metadata_fields=progress_percent,progress_message
+```
 
 ### GET `.../executions/status/`
 

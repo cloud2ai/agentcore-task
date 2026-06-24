@@ -104,7 +104,10 @@ class TaskExecutionViewSet(viewsets.ReadOnlyModelViewSet):
                 {"error": "Task not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        serializer = TaskExecutionSerializer(task_execution)
+        serializer = TaskExecutionSerializer(
+            task_execution,
+            context=self.get_serializer_context(),
+        )
         return Response(serializer.data)
 
     @extend_schema(
@@ -126,7 +129,10 @@ class TaskExecutionViewSet(viewsets.ReadOnlyModelViewSet):
                 {"error": "Task not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        serializer = TaskExecutionSerializer(task_execution)
+        serializer = TaskExecutionSerializer(
+            task_execution,
+            context=self.get_serializer_context(),
+        )
         return Response(serializer.data)
 
     @extend_schema(
@@ -144,7 +150,10 @@ class TaskExecutionViewSet(viewsets.ReadOnlyModelViewSet):
                 {"error": "Failed to sync task"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        serializer = TaskExecutionSerializer(synced_task)
+        serializer = TaskExecutionSerializer(
+            synced_task,
+            context=self.get_serializer_context(),
+        )
         return Response(serializer.data)
 
     @extend_schema(
