@@ -747,7 +747,9 @@ class TestPreventDuplicateTaskLockParams:
     def test_falsy_but_real_values_still_key_the_lock(self, db):
         seen = []
 
-        @prevent_duplicate_task("collect_zero", lock_params=("user_id", "page"))
+        @prevent_duplicate_task(
+            "collect_zero", lock_params=("user_id", "page")
+        )
         def run(user_id, page):
             seen.append(is_task_locked("collect_zero_0_0"))
             return "ran"
