@@ -81,6 +81,18 @@ def _build_task_lock_name(lock_name, lock_param, param_value):
     return f"{lock_name}_{param_value}"
 
 
+def _has_value(value) -> bool:
+    """Whether a value contributes to a lock name.
+
+    One predicate, used by both the caller-facing check and the name
+    builder. When they disagreed, a call whose values were all empty
+    strings passed the check, contributed nothing to the name, and took
+    the un-keyed lock without a word — and every way this can degrade
+    degrades towards *less* locking, so silence is the dangerous part.
+    """
+    return value is not None and value != ""
+
+
 def _extract_named_values(func, args, kwargs, names):
     """Values of ``names`` for this call, positional or keyword.
 
@@ -104,7 +116,7 @@ def _build_task_lock_name_multi(lock_name, param_values):
     optional parameter keeps a stable name instead of colliding with a
     different call that omitted a different one.
     """
-    parts = [str(value) for value in param_values if value not in (None, "")]
+    parts = [str(value) for value in param_values if _has_value(value)]
     if not parts:
         return lock_name
     joined = "_".join(parts)
@@ -143,14 +155,17 @@ def prevent_duplicate_task(
                 values = _extract_named_values(
                     func, args, kwargs, lock_params
                 )
-                if any(value is not None for value in values):
+                if any(_has_value(value) for value in values):
                     task_lock_name = _build_task_lock_name_multi(
                         lock_name, values
                     )
                 else:
                     logger.warning(
-                        f"Could not extract any of lock_params={lock_params}, "
-                        f"using lock_name={lock_name}"
+                        f"Could not extract any of lock_params={lock_params}; "
+                        f"falling back to the un-keyed lock_name={lock_name}, "
+                        f"which serialises every call to this task. Pass a "
+                        f"sequence of parameter names that this call "
+                        f"actually supplies."
                     )
             elif lock_param:
                 pv = _extract_lock_param_value(args, kwargs, lock_param)
