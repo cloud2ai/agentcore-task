@@ -3,9 +3,8 @@ Task lock: prevent duplicate task execution.
 Public API: import from agentcore_task.adapters.django.
 """
 import hashlib
-import inspect
 import logging
-from typing import Optional, Sequence
+from typing import Optional
 
 from django.core.cache import cache
 
@@ -81,78 +80,20 @@ def _build_task_lock_name(lock_name, lock_param, param_value):
     return f"{lock_name}_{param_value}"
 
 
-def _extract_named_values(func, args, kwargs, names):
-    """Values of ``names`` for this call, positional or keyword.
-
-    Bound against the function's own signature rather than guessed from
-    argument position: a composite key needs each name resolved to *its*
-    argument, and the single-param helper's positional fallback returns the
-    same value whatever name it is asked for.
-    """
-    try:
-        bound = inspect.signature(func).bind_partial(*args, **kwargs)
-        bound.apply_defaults()
-        return [bound.arguments.get(name) for name in names]
-    except (TypeError, ValueError):
-        return [kwargs.get(name) for name in names]
-
-
-def _build_task_lock_name_multi(lock_name, param_values):
-    """Lock name for a composite key.
-
-    A value that is missing contributes nothing, so a caller that omits an
-    optional parameter keeps a stable name instead of colliding with a
-    different call that omitted a different one.
-    """
-    parts = [str(value) for value in param_values if value not in (None, "")]
-    if not parts:
-        return lock_name
-    joined = "_".join(parts)
-    if len(joined) > 200:
-        h = hashlib.md5(joined.encode("utf-8")).hexdigest()[:16]
-        return f"{lock_name}_{h}"
-    return f"{lock_name}_{joined}"
-
-
 def prevent_duplicate_task(
     lock_name: str,
     timeout: int = DEFAULT_TASK_TIMEOUT,
     lock_param: Optional[str] = None,
-    lock_params: Optional[Sequence[str]] = None,
 ):
     """
     Decorator to prevent duplicate task execution: acquires lock before run,
     releases after. Returns skip payload if lock exists or acquisition fails.
-
-    ``lock_param`` locks on one argument. ``lock_params`` locks on several,
-    for a task whose separate invocations are genuinely separate work and
-    should not block each other -- e.g. a collector called once per board
-    type per user, where locking on the user alone makes the boards
-    serialise and, worse, makes a rescheduled retry return "skipped"
-    without rescheduling again.
-
-    The two are independent: ``lock_param`` keeps producing exactly the
-    name it always did, so adding ``lock_params`` cannot move an existing
-    caller's lock.
     """
     def decorator(func):
 
         def wrapper(*args, **kwargs):
             task_lock_name = lock_name
-            if lock_params:
-                values = _extract_named_values(
-                    func, args, kwargs, lock_params
-                )
-                if any(value is not None for value in values):
-                    task_lock_name = _build_task_lock_name_multi(
-                        lock_name, values
-                    )
-                else:
-                    logger.warning(
-                        f"Could not extract any of lock_params={lock_params}, "
-                        f"using lock_name={lock_name}"
-                    )
-            elif lock_param:
+            if lock_param:
                 pv = _extract_lock_param_value(args, kwargs, lock_param)
                 if pv is not None:
                     task_lock_name = _build_task_lock_name(
