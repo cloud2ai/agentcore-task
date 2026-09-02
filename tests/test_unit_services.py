@@ -702,3 +702,55 @@ class TestPreventDuplicateTaskLockParams:
         with pytest.raises(RuntimeError):
             run(username="alice", since="today")
         assert not is_task_locked("collect_alice_today")
+
+    def test_every_degradation_is_audible(self, db, caplog):
+        """The danger is silence: all of these fall back to *less* locking.
+
+        None of them is reachable from the first consumer, so a warning is
+        what the next one gets instead of a mystery skip.
+        """
+        import logging
+
+        cases = {
+            "empty values": dict(username="", since=""),
+            "names the call does not supply": dict(other="x"),
+        }
+        for label, call_kwargs in cases.items():
+            @prevent_duplicate_task(
+                f"collect_{len(label)}", lock_params=("username", "since")
+            )
+            def run(username="", since="", other=None):
+                return "ran"
+
+            caplog.clear()
+            with caplog.at_level(logging.WARNING):
+                assert run(**call_kwargs) == "ran"
+            assert any(
+                "lock_params" in record.message for record in caplog.records
+            ), f"no warning for: {label}"
+
+    def test_a_bare_string_is_audible_too(self, db, caplog):
+        """A string is iterable, so this keys on characters and finds none."""
+        import logging
+
+        @prevent_duplicate_task("collect_bare", lock_params="username")
+        def run(username):
+            return "ran"
+
+        caplog.clear()
+        with caplog.at_level(logging.WARNING):
+            assert run(username="alice") == "ran"
+        assert any(
+            "lock_params" in record.message for record in caplog.records
+        )
+
+    def test_falsy_but_real_values_still_key_the_lock(self, db):
+        seen = []
+
+        @prevent_duplicate_task("collect_zero", lock_params=("user_id", "page"))
+        def run(user_id, page):
+            seen.append(is_task_locked("collect_zero_0_0"))
+            return "ran"
+
+        assert run(user_id=0, page=0) == "ran"
+        assert seen == [True]
