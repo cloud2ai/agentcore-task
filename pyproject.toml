@@ -1,13 +1,36 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentcore-task"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Unified task execution tracking for Django (Celery integration)"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Cloud2AI" }]
+keywords = ["django", "celery", "task", "execution", "tracking", "agentcore"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.0",
+    "Framework :: Django :: 5.1",
+    "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
+    "Framework :: Django :: 6.1",
+    "Framework :: Celery",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "django>=4.2",
     "djangorestframework>=3.14",
@@ -21,6 +44,15 @@ dev = [
     "pytest",
     "pytest-django",
 ]
+
+[project.urls]
+Homepage = "https://github.com/cloud2ai/agentcore-task"
+Repository = "https://github.com/cloud2ai/agentcore-task"
+Issues = "https://github.com/cloud2ai/agentcore-task/issues"
+Changelog = "https://github.com/cloud2ai/agentcore-task/releases"
+
+[tool.setuptools.dynamic]
+version = { attr = "agentcore_task.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["."]
